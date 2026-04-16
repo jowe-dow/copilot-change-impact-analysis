@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>变更影响分析报告 — {BRANCH_NAME}</title>
+<style>
+  :root {
+    --c-bg: #eef0f5;
+    --c-card: #ffffff;
+    --c-border: #dde2ee;
+    --c-text: #111827;
+    --c-text2: #4b5675;
+    --c-primary: #1d6fdb;
+    --c-primary-bg: #eff6ff;
+    --c-red: #e11d48;
+    --c-red-bg: #fff0f3;
+    --c-red-border: #fda4b8;
+    --c-amber: #d97706;
+    --c-amber-bg: #fffbeb;
+    --c-amber-border: #fcd34d;
+    --c-green: #059669;
+    --c-green-bg: #ecfdf5;
+    --c-green-border: #6ee7b7;
+    --c-gray: #6b7280;
+    --c-gray-bg: #f3f4f8;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,10,30,.06), 0 4px 14px rgba(0,10,30,.07);
+    --sidebar-w: 204px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--c-bg);
+    color: var(--c-text);
+    line-height: 1.7;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── header ── */
+  .header {
+    background: #0b0e1a;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 90% at 5% 50%, rgba(91,95,199,.28) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 70% at 95% 20%, rgba(139,92,246,.18) 0%, transparent 55%),
+      radial-gradient(ellipse 40% 50% at 60% 100%, rgba(56,189,248,.10) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 40%, #38bdf8 80%, #34d399 100%);
+  }
+  .header-inner {
+    max-width: 100%;
+    padding: 36px 32px 32px;
+    position: relative;
+    z-index: 1;
+  }
+  .header-top {
+    display: flex; align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px; flex-wrap: wrap; margin-bottom: 24px;
+  }
+  .header-brand { display: flex; align-items: center; gap: 14px; }
+  .header-logo {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 4px 16px rgba(99,102,241,.4);
+    flex-shrink: 0;
+  }
+  .header-titles h1 {
+    font-size: 22px; font-weight: 700; letter-spacing: -.4px;
+    color: #fff; line-height: 1.2; margin-bottom: 4px;
+  }
+  .header-titles .subtitle { font-size: 12px; color: rgba(255,255,255,.45); font-weight: 400; }
+  .header-status {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    background: rgba(52,211,153,.12);
+    border: 1px solid rgba(52,211,153,.3);
+    border-radius: 20px;
+    font-size: 12px; color: #34d399; font-weight: 600; white-space: nowrap;
+  }
+  .header-status::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: #34d399; box-shadow: 0 0 6px #34d399; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .header-divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.05) 60%, transparent 100%);
+    margin-bottom: 20px;
+  }
+  .meta { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 12.5px; }
+  .meta-item { display: inline-flex; align-items: center; gap: 7px; color: rgba(255,255,255,.65); }
+  .meta-item .meta-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.10);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+  }
+  .meta-item .meta-text { line-height: 1.3; }
+  .meta-item .meta-text strong { display: block; color: rgba(255,255,255,.92); font-size: 13px; font-weight: 600; }
+  .meta-item .meta-text span { font-size: 11px; color: rgba(255,255,255,.4); }
+
+  /* ── page layout: sidebar + content ── */
+  .page-body {
+    display: flex;
+    align-items: flex-start;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0 16px;
+    gap: 20px;
+  }
+
+  /* ── sidebar ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    position: sticky;
+    top: 16px;
+    padding: 20px 0 40px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #d8ddf0 transparent;
+  }
+  .sidebar::-webkit-scrollbar { width: 3px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #d8ddf0; border-radius: 2px; }
+  .nav-box {
+    background: #fff;
+    border-radius: var(--radius);
+    border: 1px solid var(--c-border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .nav-box-hd {
+    font-size: 11px; font-weight: 700; color: #8a93b4;
+    text-transform: uppercase; letter-spacing: .8px;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid #eef0f8;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .nav-tree { list-style: none; padding: 6px 0; margin: 0; }
+  .nav-tree a {
+    display: block; text-decoration: none;
+    color: var(--c-text2); font-size: 12.5px;
+    padding: 5px 12px;
+    border-left: 2px solid transparent;
+    transition: background .12s, color .12s, border-color .12s;
+    line-height: 1.35;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nav-tree a:hover { background: var(--c-primary-bg); color: var(--c-primary); }
+  .nav-tree a.active {
+    color: var(--c-primary); font-weight: 600;
+    background: var(--c-primary-bg); border-left-color: var(--c-primary);
+  }
+  .nav-tree .l1 > a {
+    font-weight: 700; color: var(--c-text);
+    padding-top: 7px; padding-bottom: 7px; font-size: 12.5px;
+  }
+  .nav-tree .l2 > a { padding-left: 22px; font-size: 11.5px; color: #7a84a8; }
+  .nav-tree .l2 > a::before { content: '· '; color: var(--c-primary); }
+  .l2-sub { list-style: none; padding: 0; margin: 0; }
+
+  /* ── main content area ── */
+  .main-content {
+    flex: 1;
+    min-width: 0;
+    padding: 24px 4px 56px;
+  }
+
+  /* ── stats bar ── */
+  .stats { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat-card {
+    flex: 1; min-width: 120px;
+    background: var(--c-card); border-radius: 8px;
+    padding: 12px 16px 10px;
+    box-shadow: var(--shadow);
+    position: relative; overflow: hidden;
+    border: 1px solid var(--c-border);
+    display: flex; flex-direction: row; align-items: center; gap: 12px;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px; border-radius: 8px 8px 0 0;
+  }
+  .stat-card .stat-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .stat-card .stat-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .stat-card .num { font-size: 24px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+  .stat-card .label { font-size: 11px; color: var(--c-text2); font-weight: 500; white-space: nowrap; }
+  .stat-card.total::before { background: var(--c-primary); }
+  .stat-card.total .num { color: var(--c-primary); }
+  .stat-card.high::before { background: var(--c-red); }
+  .stat-card.high .num { color: var(--c-red); }
+  .stat-card.mid::before { background: var(--c-amber); }
+  .stat-card.mid .num { color: var(--c-amber); }
+
+  /* ── section card ── */
+  .section {
+    background: var(--c-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
+    overflow: hidden;
+    border: 1px solid var(--c-border);
+  }
+  .section-title {
+    font-size: 16px; font-weight: 700;
+    padding: 16px 22px;
+    border-bottom: 2px solid var(--c-border);
+    display: flex; align-items: center; gap: 12px;
+    background: #fff; color: var(--c-text);
+  }
+  .section-title .icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .section-title .section-desc { font-size: 13px; font-weight: 400; color: #9aa3c0; margin-left: 2px; }
+  .section-title.collapsible { cursor: pointer; user-select: none; }
+  .section-title.collapsible:hover { background: #f8f9fe; }
+  .section-title .toggle-arrow { margin-left: auto; font-size: 12px; color: #c4cade; transition: transform .25s; }
+  .section-title.collapsible.collapsed .toggle-arrow { transform: rotate(-90deg); }
+  .section-body.collapsed { display: none; }
+
+  /* ── 所属模块 二级标题 (section1) ── */
+  .module-group + .module-group { border-top: 1px solid #eef0f8; margin-top: 4px; }
+  .module-heading {
+    font-size: 13.5px; font-weight: 700; color: var(--c-primary);
+    padding: 14px 22px 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .module-heading::before {
+    content: '';
+    display: inline-block; width: 3px; height: 15px;
+    background: var(--c-primary); border-radius: 2px; flex-shrink: 0;
+  }
+  .module-heading .mod-badge {
+    font-size: 11px; font-weight: 600; color: #7a8bb5;
+    background: #eef1fb; border: 1px solid #dde2ee;
+    padding: 1px 8px; border-radius: 4px; margin-left: 2px;
+  }
+  .module-table-wrap { padding: 0 22px 16px; }
+
+  /* ── table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    background: #f4f6fb; text-align: left;
+    padding: 12px 18px; font-weight: 700; color: #5a6485;
+    border-bottom: 2px solid #dde2ee;
+    white-space: nowrap; font-size: 12.5px; letter-spacing: .2px;
+  }
+  tbody td {
+    padding: 13px 18px; border-bottom: 1px solid #edf0f8;
+    vertical-align: middle; color: var(--c-text);
+    font-size: 14px; line-height: 1.6;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) td { background: #fafbfe; }
+  tbody tr:hover td { background: #f0f4ff !important; }
+  tbody td:first-child { color: #b4bcd8; font-size: 13px; }
+
+  /* ── badges ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: 6px;
+    font-size: 13px; font-weight: 700; white-space: nowrap;
+    border: 1.5px solid transparent; letter-spacing: .1px;
+  }
+  .badge-p0 { background: var(--c-red);   color: #fff; }
+  .badge-p1 { background: #ea580c; color: #fff; }
+  .badge-p2 { background: var(--c-amber); color: #fff; }
+  .badge-p3 { background: var(--c-gray-bg); color: var(--c-gray); border-color: #d1d5db; }
+
+  /* ── detail card (功能维度) ── */
+  .detail-card {
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    margin: 16px 20px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,10,30,.05);
+  }
+  .detail-card.impact-p0 { border-left: 4px solid var(--c-red); }
+  .detail-card.impact-p1 { border-left: 4px solid #ea580c; }
+  .detail-card.impact-p2 { border-left: 4px solid var(--c-amber); }
+  .detail-card.impact-p3 { border-left: 4px solid var(--c-gray); }
+  .detail-header {
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; user-select: none;
+    background: #fafbff;
+  }
+  .detail-header:hover { background: #f2f4ff; }
+  .detail-header .arrow { transition: transform .22s; font-size: 11px; color: #c4cade; flex-shrink: 0; }
+  .detail-header .arrow.open { transform: rotate(90deg); color: var(--c-primary); }
+  .detail-header .file-path { display: flex; flex-direction: column; gap: 2px; overflow: hidden; flex: 1; }
+  .detail-header .file-name {
+    font-weight: 700; font-size: 14px; color: var(--c-text);
+    font-family: "SF Mono","Fira Code",Menlo,Consolas,monospace;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .detail-header .file-dir {
+    font-size: 12px; color: #a0a8c0;
+    font-family: "SF Mono","Fira Code",Menlo,Consolas,monospace;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .detail-body { padding: 20px 22px 22px; border-top: 1px solid var(--c-border); background: #fff; }
+  .detail-body.collapsed { display: none; }
+
+  /* ── 影响页面 标题 (detail-body 内) ── */
+  .affected-pages-hd {
+    font-size: 13.5px; font-weight: 700; color: var(--c-text);
+    margin: 18px 0 10px; padding: 0 0 8px;
+    border-bottom: 1px solid var(--c-border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .affected-pages-hd::before { content: '📄'; font-size: 14px; }
+
+  /* ── 变更摘要 ── */
+  .change-summary {
+    background: #fffbe6; border: 1px solid #fde68a;
+    border-left: 4px solid #f59e0b;
+    padding: 13px 16px; border-radius: 0 8px 8px 0;
+    margin-bottom: 20px; font-size: 14px; color: #92400e;
+    line-height: 1.7; display: flex; gap: 10px; align-items: flex-start;
+  }
+  .change-summary::before { content: '\26A0'; font-size: 16px; flex-shrink: 0; }
+
+  /* ── ref list ── */
+  .ref-list { list-style: none; margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .ref-list li {
+    padding: 8px 14px; font-size: 13px; color: #3a4060;
+    background: #f6f8ff; border-radius: 6px; border: 1px solid #e0e5f5;
+    font-family: "SF Mono","Fira Code",Menlo,Consolas,monospace;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ref-list li::before {
+    content: ''; display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--c-primary); flex-shrink: 0; opacity: .7;
+  }
+
+  /* ── sub-table ── */
+  .sub-table { margin-top: 10px; border-radius: 8px; overflow: hidden; border: 1px solid #dde2ee; }
+  .sub-table thead th { background: #f4f6fb; color: #5a6485; border-bottom: 2px solid #dde2ee; font-size: 12.5px; padding: 10px 16px; }
+  .sub-table tbody td { background: #fff; font-size: 14px; color: var(--c-text); padding: 11px 16px; vertical-align: middle; border-bottom: 1px solid #edf0f8; }
+  .sub-table tbody tr:last-child td { border-bottom: none; }
+  .sub-table tbody tr:nth-child(even) td { background: #fafbfe; }
+  .sub-table tbody tr:hover td { background: #f0f4ff !important; }
+
+  /* ── 回归范围 二级标题 (section3) ── */
+  .regression-group + .regression-group { border-top: 1px solid #eef0f8; }
+  .regression-heading {
+    font-size: 13.5px; font-weight: 700; color: var(--c-text);
+    padding: 14px 22px 8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .regression-heading .rh-bar {
+    display: inline-block; width: 3px; height: 15px;
+    background: var(--c-green); border-radius: 2px; flex-shrink: 0;
+  }
+  .regression-table-wrap { padding: 0 22px 16px; }
+
+  /* ── priority legend ── */
+  .legend {
+    display: flex; gap: 16px 28px; padding: 14px 22px;
+    background: #f8f9fe; border-top: 1px solid var(--c-border);
+    font-size: 13px; color: var(--c-text2); flex-wrap: wrap; align-items: center;
+  }
+
+  /* ── 回归总结说明 (置顶) ── */
+  .notes {
+    background: var(--c-card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 20px 24px;
+    margin-bottom: 24px;
+    border: 1px solid var(--c-border);
+    border-left: 4px solid var(--c-primary);
+  }
+  .notes h3 {
+    font-size: 15px; font-weight: 700; color: var(--c-primary);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .notes h3::before { content: '\1F4CB'; font-size: 16px; }
+  .notes ul { padding-left: 0; font-size: 14px; color: #374060; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .notes li { display: flex; gap: 10px; align-items: flex-start; line-height: 1.7; }
+  .notes li::before {
+    content: ''; display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--c-primary); flex-shrink: 0; margin-top: 8px; opacity: .6;
+  }
+
+  code {
+    background: #eef3ff; color: #1d4ed8;
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 13px; font-family: "SF Mono","Fira Code",Menlo,Consolas,monospace;
+    border: 1px solid #c7d7fa;
+  }
+  td.menu-path {
+    font-family: "SF Mono","Fira Code",Menlo,Consolas,monospace;
+    font-size: 12px; color: #3b5bdb; font-weight: 500; white-space: nowrap;
+  }
+  .trigger-action {
+    display: block; position: relative; padding-left: 15px;
+    color: #1e293b; font-size: 13.5px; line-height: 1.75;
+  }
+  .trigger-action::before { content: '\25B8'; position: absolute; left: 0; top: 1px; color: #f59e0b; font-size: 13px; font-weight: 900; }
+  .biz-path {
+    display: block; position: relative; padding-left: 15px;
+    color: #374151; font-size: 13px; line-height: 1.75;
+  }
+  .biz-path::before { content: '\25B8'; position: absolute; left: 0; top: 1px; color: #8b5cf6; font-size: 13px; font-weight: 900; }
+
+  .section-label {
+    font-size: 12px; font-weight: 700; padding: 0 0 10px;
+    color: #8a93b4; text-transform: uppercase; letter-spacing: .8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: #e8ecf8; }
+  .collapsible-label {
+    cursor: pointer; user-select: none;
+    padding: 7px 10px; margin: 0 0 10px;
+    border-radius: 6px; transition: background .15s;
+  }
+  .collapsible-label:hover { background: #f2f4ff; }
+  .collapsible-label .cl-arrow { font-size: 10px; color: #c4cade; transition: transform .2s; flex-shrink: 0; }
+  .collapsible-label .cl-arrow.open { transform: rotate(90deg); color: var(--c-primary); }
+  .collapsible-label::after { display: none; }
+  .collapsible-content.collapsed { display: none; }
+
+  @media print {
+    body { background: #fff; }
+    .sidebar { display: none; }
+    .page-body { display: block; padding: 0; }
+    .main-content { padding: 0 24px; }
+    .header { background: #1232a0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section, .stat-card, .notes { box-shadow: none; }
+    .detail-body.collapsed { display: block !important; }
+    .section-body.collapsed { display: block !important; }
+    .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!--
+  使用说明（生成报告时删除本注释块）
+
+  占位符：
+    {BRANCH_NAME}  — 当前分支名
+    {BASE_BRANCH}  — 基准分支名（默认 master）
+    {TIMESTAMP}    — 生成日期 YYYY-MM-DD
+    {TOTAL_FILES}  — 变更文件总数
+    {HIGH_COUNT}   — P0 级文件数
+    {MID_COUNT}    — P1 级文件数
+
+  影响级别定义：
+    P0 入口阻断/核心功能阻断 | P1 重要功能 | P2 非重要功能 | P3 其他
+    引用 < 2 的文件不纳入分析
+
+  优先级定义：
+    P0 立即回归 / P1 发布前回归 / P2 可不阻塞 / P3 低优先级
+
+  导航锚点命名规则：
+    #summary        — 回归总结说明
+    #section1       — 变更文件总览
+    #module-xxx     — 所属模块（xxx 为模块英文/拼音短名）
+    #section2       — 功能维度
+    #file-xxx       — 功能卡片（xxx 为文件短名去扩展名）
+    #section3       — 业务维度(测试回归建议)
+    #regression-N   — 回归范围分组（N 为序号）
+-->
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="header-brand">
+        <div class="header-logo">📋</div>
+        <div class="header-titles">
+          <h1>回归影响分析报告</h1>
+          <div class="subtitle">Regression Impact Analysis Report</div>
+        </div>
+      </div>
+      <div class="header-status">分析完成</div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="meta">
+      <div class="meta-item">
+        <div class="meta-icon">🔀</div>
+        <div class="meta-text">
+          <strong>{BRANCH_NAME} → {BASE_BRANCH}</strong>
+          <span>分支对比</span>
+        </div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-icon">📅</div>
+        <div class="meta-text">
+          <strong>{TIMESTAMP}</strong>
+          <span>生成时间</span>
+        </div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-icon">📁</div>
+        <div class="meta-text">
+          <strong>{TOTAL_FILES} 个文件</strong>
+          <span>src/ 下业务代码</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE BODY: 左右布局 sidebar + content -->
+<div class="page-body">
+
+  <!-- 左侧导航 -->
+  <aside class="sidebar">
+    <div class="nav-box">
+      <div class="nav-box-hd">📋 目录</div>
+      <ul class="nav-tree" id="navTree">
+        <!-- 由 JS 自动构建 -->
+      </ul>
+    </div>
+  </aside>
+
+  <!-- 右侧主内容 -->
+  <main class="main-content">
+
+    <!-- 回归总结说明（置顶） -->
+    <div class="notes" id="summary">
+      <h3>回归总结说明</h3>
+      <ul>
+        <li>针对本次变更整体的回归重点与风险提示，优先完成 P0 场景验证。</li>
+        <li>重点关注 P0/P1 优先级文件涉及的核心业务流程。</li>
+        <!-- 按实际情况补充要点 -->
+      </ul>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat-card total">
+        <div class="stat-icon">📂</div>
+        <div class="stat-text">
+          <div class="num">{TOTAL_FILES}</div>
+          <div class="label">变更文件数</div>
+        </div>
+      </div>
+      <div class="stat-card high">
+        <div class="stat-icon">🔴</div>
+        <div class="stat-text">
+          <div class="num">{HIGH_COUNT}</div>
+          <div class="label">P0</div>
+        </div>
+      </div>
+      <div class="stat-card mid">
+        <div class="stat-icon">🟡</div>
+        <div class="stat-text">
+          <div class="num">{MID_COUNT}</div>
+          <div class="label">P1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 1: 变更文件总览（一级标题） -->
+    <div class="section" id="section1">
+      <div class="section-title collapsible collapsed" onclick="toggleSection(this)">
+        <span class="icon" style="background:var(--c-primary)">1</span>
+        变更文件总览
+        <span class="section-desc">按所属模块分组，仅展示引用 ≥ 2 的文件</span>
+        <span class="toggle-arrow">▼</span>
+      </div>
+      <div class="section-body collapsed">
+
+        <!--
+          所属模块（二级标题）
+          结构：每个 .module-group 对应一个模块，h3.module-heading[id] 为锚点
+          按实际模块数量增减 .module-group 块
+        -->
+
+        <div class="module-group" id="module-common">
+          <h3 class="module-heading">
+            通用组件
+            <span class="mod-badge">2 个文件</span>
+          </h3>
+          <div class="module-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:36px">#</th>
+                  <th>变更文件</th>
+                  <th style="width:60px">优先级</th>
+                  <th>影响功能范围</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td><code>src/components/BaseButton.vue</code></td>
+                  <td><span class="badge badge-p0">P0</span></td>
+                  <td>订单管理 &gt; 订单列表；订单管理 &gt; 提交订单</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td><code>src/components/BaseInput.vue</code></td>
+                  <td><span class="badge badge-p1">P1</span></td>
+                  <td>用户账号登录页</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="module-group" id="module-order">
+          <h3 class="module-heading">
+            订单模块
+            <span class="mod-badge">1 个文件</span>
+          </h3>
+          <div class="module-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:36px">#</th>
+                  <th>变更文件</th>
+                  <th style="width:60px">优先级</th>
+                  <th>影响功能范围</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td><code>src/order/utils/orderHelper.ts</code></td>
+                  <td><span class="badge badge-p0">P0</span></td>
+                  <td>订单管理 &gt; 提交订单；订单管理 &gt; 订单列表</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 按实际模块数量增减 .module-group -->
+      </div>
+    </div>
+
+    <!-- SECTION 2: 功能维度（一级标题） -->
+    <div class="section" id="section2">
+      <div class="section-title">
+        <span class="icon" style="background:var(--c-red)">2</span>
+        功能维度
+        <span class="section-desc">按变更文件展开影响分析</span>
+      </div>
+
+      <!--
+        每个 detail-card[id] 对应一个变更文件
+        id 命名：file-{文件短名去扩展名}
+        class impact-p0/p1/p2/p3 对应 faultRating 中的优先级
+        按变更文件数量复制，更新对应 id
+      -->
+
+      <!-- P0 detail-card -->
+      <div class="detail-card impact-p0" id="file-BaseButton">
+        <div class="detail-header" onclick="toggleCard(this)">
+          <span class="arrow open">▶</span>
+          <span class="badge badge-p0">🔴 P0</span>
+          <div class="file-path">
+            <span class="file-name">BaseButton.vue</span>
+            <span class="file-dir">src/components/</span>
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="change-summary">
+            变更摘要：简述改了什么——新增/修改/删除了哪些导出符号或功能。
+          </div>
+
+          <div class="section-label collapsible-label" onclick="toggleRefList(this)">
+            <span class="cl-arrow open">▶</span>
+            引用位置
+          </div>
+          <div class="collapsible-content">
+            <ul class="ref-list">
+              <li><code>src/pages/module-a/index.vue</code></li>
+              <li><code>src/pages/module-b/components/drawer.vue</code></li>
+              <li><code>src/pages/module-c/components/form.vue</code></li>
+              <!-- 按实际引用数增减 -->
+            </ul>
+          </div>
+
+          <!-- 影响页面（作为标题） -->
+          <h4 class="affected-pages-hd">影响页面</h4>
+          <table class="sub-table">
+            <thead>
+              <tr>
+                <th>影响页面</th>
+                <th>菜单路径</th>
+                <th>业务触发路径</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>订单列表页</td>
+                <td class="menu-path">订单管理 &gt; 订单列表</td>
+                <td><span class="biz-path">进入订单列表，点击操作按钮触发变更逻辑</span></td>
+              </tr>
+              <tr>
+                <td>提交订单页</td>
+                <td class="menu-path">订单管理 &gt; 提交订单</td>
+                <td><span class="biz-path">填写订单信息后点击提交，触发按钮组件</span></td>
+              </tr>
+              <!-- 按实际影响页面数量增减行 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- P1 detail-card -->
+      <div class="detail-card impact-p1" id="file-BaseInput">
+        <div class="detail-header" onclick="toggleCard(this)">
+          <span class="arrow open">▶</span>
+          <span class="badge badge-p1">🟠 P1</span>
+          <div class="file-path">
+            <span class="file-name">BaseInput.vue</span>
+            <span class="file-dir">src/components/</span>
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="change-summary">
+            变更摘要：简述改了什么——新增/修改/删除了哪些属性或交互行为。
+          </div>
+
+          <div class="section-label collapsible-label" onclick="toggleRefList(this)">
+            <span class="cl-arrow open">▶</span>
+            引用位置
+          </div>
+          <div class="collapsible-content">
+            <ul class="ref-list">
+              <li><code>src/pages/user/login.vue</code></li>
+              <li><code>src/pages/user/register.vue</code></li>
+            </ul>
+          </div>
+
+          <h4 class="affected-pages-hd">影响页面</h4>
+          <table class="sub-table">
+            <thead>
+              <tr>
+                <th>影响页面</th>
+                <th>菜单路径</th>
+                <th>业务触发路径</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>登录页</td>
+                <td class="menu-path">—（公开页面）</td>
+                <td><span class="biz-path">用户输入账号/密码时触发输入组件</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 按实际变更文件数量复制 detail-card，class 取 impact-p0/p1/p2/p3，更新对应 id -->
+    </div>
+
+    <!-- SECTION 3: 业务维度(测试回归建议)（一级标题） -->
+    <div class="section" id="section3">
+      <div class="section-title">
+        <span class="icon" style="background:var(--c-green)">3</span>
+        业务维度(测试回归建议)
+        <span class="section-desc">按回归范围分组，涵盖核心业务流程</span>
+      </div>
+
+      <!--
+        回归范围（二级标题）
+        结构：每个 .regression-group[id] 对应一个回归场景分组
+        h3.regression-heading 文本即为该组的回归范围名称
+        按实际增减 .regression-group 块
+      -->
+
+      <div class="regression-group" id="regression-1">
+        <h3 class="regression-heading">
+          <span class="rh-bar"></span>
+          订单核心流程
+
+        </h3>
+        <div class="regression-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px">优先级</th>
+                <th>菜单路径</th>
+                <th>触发操作</th>
+                <th style="width:160px">关联变更</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-p0">P0</span></td>
+                <td class="menu-path">订单管理 &gt; 订单列表</td>
+                <td><span class="trigger-action">进入订单列表，点击提交/取消操作按钮，验证按钮状态与响应逻辑</span></td>
+                <td><code>BaseButton.vue</code></td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-p0">P0</span></td>
+                <td class="menu-path">订单管理 &gt; 提交订单</td>
+                <td><span class="trigger-action">填写订单信息并提交，验证表单流程与数据处理</span></td>
+                <td><code>orderHelper.ts</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="regression-group" id="regression-2">
+        <h3 class="regression-heading">
+          <span class="rh-bar"></span>
+          用户账号管理
+           
+        </h3>
+        <div class="regression-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px">优先级</th>
+                <th>菜单路径</th>
+                <th>触发操作</th>
+                <th style="width:160px">关联变更</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-p1">P1</span></td>
+                <td class="menu-path">—（登录页）</td>
+                <td><span class="trigger-action">打开登录页，输入账号密码，验证输入框交互与校验逻辑</span></td>
+                <td><code>BaseInput.vue</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="regression-group" id="regression-3">
+        <h3 class="regression-heading">
+          <span class="rh-bar"></span>
+          边缘 / 低频场景
+          
+        </h3>
+        <div class="regression-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px">优先级</th>
+                <th>菜单路径</th>
+                <th>触发操作</th>
+                <th style="width:160px">关联变更</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-p2">P2</span></td>
+                <td class="menu-path">一级菜单 &gt; 二级菜单</td>
+                <td><span class="trigger-action">用户操作步骤（边缘场景描述）</span></td>
+                <td><code>变更文件短名</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 按实际回归分组数量增减 .regression-group -->
+
+      <div class="legend">
+        <span><span class="badge badge-p0">P0</span> 入口阻断/核心功能阻断，立即回归</span>
+        <span><span class="badge badge-p1">P1</span> 重要功能受影响，发布前必须回归</span>
+        <span><span class="badge badge-p2">P2</span> 非重要功能，可安排回归不阻塞发布</span>
+        <span><span class="badge badge-p3">P3</span> 其他/不在等级表中，低优先级</span>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  /* 自动构建左侧目录 */
+  (function buildNav() {
+    var tree = document.getElementById('navTree');
+    if (!tree) return;
+    var defs = [
+      {
+        id: 'summary', label: '回归总结说明', children: []
+      },
+      {
+        id: 'section1', label: '变更文件总览',
+        children: Array.from(document.querySelectorAll('.module-group[id]')).map(function(el) {
+          var h3 = el.querySelector('.module-heading');
+          var label = h3 ? Array.from(h3.childNodes)
+            .filter(function(n) { return n.nodeType === 3; })
+            .map(function(n) { return n.textContent.trim(); }).join('') : el.id;
+          return { id: el.id, label: label };
+        })
+      },
+      {
+        id: 'section2', label: '功能维度',
+        children: Array.from(document.querySelectorAll('.detail-card[id]')).map(function(el) {
+          var nm = el.querySelector('.file-name');
+          return { id: el.id, label: nm ? nm.textContent.trim() : el.id };
+        })
+      },
+      {
+        id: 'section3', label: '业务维度(测试回归建议)',
+        children: Array.from(document.querySelectorAll('.regression-group[id]')).map(function(el) {
+          var h3 = el.querySelector('.regression-heading');
+          var label = h3 ? Array.from(h3.childNodes)
+            .filter(function(n) { return n.nodeType === 3; })
+            .map(function(n) { return n.textContent.trim(); }).join('') : el.id;
+          return { id: el.id, label: label };
+        })
+      }
+    ];
+    var html = '';
+    defs.forEach(function(sec) {
+      html += '<li class="l1"><a href="#' + sec.id + '">' + sec.label + '</a>';
+      if (sec.children.length) {
+        html += '<ul class="l2-sub">';
+        sec.children.forEach(function(ch) {
+          html += '<li class="l2"><a href="#' + ch.id + '">' + ch.label + '</a></li>';
+        });
+        html += '</ul>';
+      }
+      html += '</li>';
+    });
+    tree.innerHTML = html;
+  })();
+
+  /* Scrollspy */
+  (function scrollspy() {
+    var ids = ['summary', 'section1', 'section2', 'section3'];
+    document.querySelectorAll('.module-group[id],.detail-card[id],.regression-group[id]').forEach(function(el) {
+      ids.push(el.id);
+    });
+    function update() {
+      var active = ids[0];
+      ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= 56) active = id;
+      });
+      document.querySelectorAll('#navTree a').forEach(function(a) {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + active);
+      });
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  })();
+
+  function toggleSection(titleEl) {
+    titleEl.classList.toggle('collapsed');
+    var body = titleEl.nextElementSibling;
+    if (body) body.classList.toggle('collapsed');
+  }
+
+  function toggleCard(headerEl) {
+    var arrow = headerEl.querySelector('.arrow');
+    var body = headerEl.nextElementSibling;
+    if (arrow) arrow.classList.toggle('open');
+    if (body) body.classList.toggle('collapsed');
+  }
+
+  function toggleRefList(labelEl) {
+    var arrow = labelEl.querySelector('.cl-arrow');
+    var content = labelEl.nextElementSibling;
+    if (arrow) arrow.classList.toggle('open');
+    if (content && content.classList.contains('collapsible-content')) {
+      content.classList.toggle('collapsed');
+    }
+  }
+
+  /* 自动为触发操作/业务触发路径列加样式 */
+  document.querySelectorAll('table').forEach(function(table) {
+    var ths = table.querySelectorAll('thead th');
+    var trigIdx = -1, bizIdx = -1;
+    ths.forEach(function(th, i) {
+      var t = th.textContent.trim();
+      if (t === '触发操作') trigIdx = i;
+      if (t === '业务触发路径') bizIdx = i;
+    });
+    table.querySelectorAll('tbody tr').forEach(function(tr) {
+      if (trigIdx >= 0) {
+        var td = tr.cells[trigIdx];
+        if (td && !td.querySelector('.trigger-action'))
+          td.innerHTML = '<span class="trigger-action">' + td.innerHTML + '</span>';
+      }
+      if (bizIdx >= 0) {
+        var td2 = tr.cells[bizIdx];
+        if (td2 && !td2.querySelector('.biz-path'))
+          td2.innerHTML = '<span class="biz-path">' + td2.innerHTML + '</span>';
+      }
+    });
+  });
+</script>
+</body>
+</html>
