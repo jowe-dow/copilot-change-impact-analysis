@@ -43,13 +43,18 @@ src/hooks/useOrderForm.ts
 2. 用 `grep_search` 在 `src/` 下搜索 `from '...<变更文件路径>'` 或 `from "<变更文件路径>"`
 3. 收集所有引用文件路径
 
-### 引用分类
+### 引用数过滤
 
 ```
-引用数 ≥ 3  → 🔴 高影响
-引用数 1-2  → 🟡 低影响
-引用数 0    → ⚪ 内部文件
+引用数 ≥ 2  → 纳入分析
+引用数 < 2  → ⚪ 内部文件（跳过）
 ```
+
+### 影响等级评定
+
+根据变更文件关联的受影响菜单/功能，在对应 faultRating 表中查找等级（P0/P1/P2/P3），功能不在表中默认 P3：
+- React 项目：[resources/faultRating-react.md](../resources/faultRating-react.md)
+- Vue 项目：[resources/faultRating-vue.md](../resources/faultRating-vue.md)
 
 ## 步骤四：关联菜单路径
 

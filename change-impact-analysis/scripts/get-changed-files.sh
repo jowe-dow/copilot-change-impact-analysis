@@ -42,7 +42,11 @@ SRC_DIR="${2:-src}"
 BUILTIN_EXCLUDES=("assets" "client" "__generated__" "node_modules")
 
 # 额外排除（来自命令行参数 $3、$4、...）
-EXTRA_EXCLUDES=("${@:3}")
+if [ $# -ge 3 ]; then
+  EXTRA_EXCLUDES=("${@:3}")
+else
+  EXTRA_EXCLUDES=()
+fi
 
 # 确保我们在 git 仓库中
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -62,9 +66,14 @@ fi
 
 # 构建 grep 排除参数
 EXCLUDE_ARGS=()
-for dir in "${BUILTIN_EXCLUDES[@]}" "${EXTRA_EXCLUDES[@]}"; do
+for dir in "${BUILTIN_EXCLUDES[@]}"; do
   EXCLUDE_ARGS+=(-e "^${SRC_DIR}/${dir}/")
 done
+if [ ${#EXTRA_EXCLUDES[@]} -gt 0 ]; then
+  for dir in "${EXTRA_EXCLUDES[@]}"; do
+    EXCLUDE_ARGS+=(-e "^${SRC_DIR}/${dir}/")
+  done
+fi
 
 # 获取变更文件（包括新增 A、修改 M、重命名 R 的目标）
 # 先过滤排除目录，再过滤只保留前端源文件扩展名
